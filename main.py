@@ -9,6 +9,7 @@ import typer
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
+from rich.text import Text
 from rich.spinner import Spinner
 from rich.live import Live
 from typing import Optional
@@ -23,20 +24,6 @@ app = typer.Typer(
     add_completion=False
 )
 console = Console()
-
-
-def make_hyperlink(url: str, text: str) -> str:
-    """
-    Create a clickable terminal hyperlink using OSC 8 escape sequences.
-
-    Args:
-        url: The URL to link to
-        text: The text to display
-
-    Returns:
-        Formatted hyperlink string
-    """
-    return f'\x1b]8;;{url}\x1b\\{text}\x1b]8;;\x1b\\'
 
 
 @app.command()
@@ -116,8 +103,8 @@ def search(
         artist = artwork.get("artist", "Unknown")
         image_url = artwork.get("image_url", "")
 
-        # Create clickable hyperlink with [View Image] text
-        link = make_hyperlink(image_url, "[View Image]")
+        # Create clickable hyperlink using Rich's native link support
+        link = Text("[View Image]", style=f"link {image_url}")
 
         table.add_row(
             str(idx),
