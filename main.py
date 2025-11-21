@@ -16,6 +16,7 @@ from typing import Optional
 
 from interpreter import generate_keywords, InterpreterError, InterpreterTimeoutError
 from curator import search_art, CuratorError
+from gallery_apis import search_art_api, GalleryAPIError
 
 
 app = typer.Typer(
@@ -30,13 +31,20 @@ console = Console()
 def search(
     quote: str = typer.Argument(..., help="The philosophical quote or abstract text to interpret"),
     max_results: int = typer.Option(10, "--max", "-m", help="Maximum number of artworks to return"),
-    timeout: int = typer.Option(30, "--timeout", "-t", help="Timeout for AI generation in seconds")
+    timeout: int = typer.Option(30, "--timeout", "-t", help="Timeout for AI generation in seconds"),
+    source: str = typer.Option("meisterdrucke", "--source", "-s", help="Art gallery source: meisterdrucke, met, wikiart, rijksmuseum")
 ):
     """
     Search for artwork based on abstract philosophical text.
 
     The AI will interpret your quote and generate art search keywords,
-    then search Meisterdrucke gallery for matching artwork.
+    then search your chosen art gallery for matching artwork.
+
+    Available sources:
+    - meisterdrucke: Meisterdrucke.ie gallery (via Apify scraping)
+    - met: Metropolitan Museum of Art (official API)
+    - wikiart: WikiArt database (official API)
+    - rijksmuseum: Rijksmuseum Amsterdam (official API, requires API key)
     """
     # Display header panel
     console.print()
@@ -65,14 +73,43 @@ def search(
     console.print(f"[bold cyan]Keywords:[/bold cyan] [green]{keywords}[/green]")
     console.print()
 
-    # Step 2: Scrape artwork using Apify
+    # Step 2: Search artwork from chosen source
     artworks = []
-    with console.status("[bold cyan]Scraping Meisterdrucke via Apify...[/bold cyan]", spinner="dots"):
+
+    # Validate source
+    valid_sources = ["meisterdrucke", "met", "wikiart", "rijksmuseum"]
+    if source.lower() not in valid_sources:
+        console.print(f"[bold red]✗ Error:[/bold red] Invalid source '{source}'", style="red")
+        console.print(f"[yellow]Valid sources: {', '.join(valid_sources)}[/yellow]")
+        raise typer.Exit(code=1)
+
+    source = source.lower()
+
+    # Set status message based on source
+    source_names = {
+        "meisterdrucke": "Meisterdrucke via Apify",
+        "met": "Metropolitan Museum of Art",
+        "wikiart": "WikiArt",
+        "rijksmuseum": "Rijksmuseum"
+    }
+    status_msg = f"[bold cyan]Searching {source_names[source]}...[/bold cyan]"
+
+    with console.status(status_msg, spinner="dots"):
         try:
-            artworks = search_art(keywords, max_results=max_results)
+            if source == "meisterdrucke":
+                # Use Apify scraping
+                artworks = search_art(keywords, max_results=max_results)
+            else:
+                # Use API-based sources
+                artworks = search_art_api(source, keywords, max_results=max_results)
         except CuratorError as e:
             console.print(f"[bold red]✗ Error:[/bold red] {str(e)}", style="red")
             console.print("[yellow]Make sure APIFY_TOKEN is set in your environment[/yellow]")
+            raise typer.Exit(code=1)
+        except GalleryAPIError as e:
+            console.print(f"[bold red]✗ Error:[/bold red] {str(e)}", style="red")
+            if "RIJKSMUSEUM_API_KEY" in str(e):
+                console.print("[yellow]Get a free API key at https://data.rijksmuseum.nl/object-metadata/api/[/yellow]")
             raise typer.Exit(code=1)
 
     # Step 3: Display results

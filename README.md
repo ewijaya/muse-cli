@@ -1,19 +1,26 @@
 # Muse CLI
 
-A Python CLI tool that interprets abstract philosophical text into art search keywords using Google Gemini, and searches for artwork on Meisterdrucke gallery using Apify.
+A Python CLI tool that interprets abstract philosophical text into art search keywords using Google Gemini, and searches for artwork across multiple renowned art galleries including the Metropolitan Museum of Art, WikiArt, Rijksmuseum, and Meisterdrucke.
 
 ## Features
 
 - **AI-Powered Interpretation**: Uses Google Gemini (gemini-2.0-flash-exp) to convert philosophical quotes into art search keywords
-- **Automated Web Scraping**: Leverages Apify's cheerio-scraper to find artwork on Meisterdrucke.ie
+- **Multiple Art Gallery Sources**: Search from 4 different galleries:
+  - **Meisterdrucke** (via Apify web scraping)
+  - **Metropolitan Museum of Art** (official API, 470,000+ artworks)
+  - **WikiArt** (official API, 250,000+ artworks)
+  - **Rijksmuseum** (official API, Dutch masters collection)
 - **Beautiful CLI**: Rich terminal UI with tables, spinners, and clickable links
 - **Timeout Protection**: Handles API timeouts gracefully
 
 ## Prerequisites
 
 - Python 3.8 or higher
-- Google Gemini API key
-- Apify API token
+- Google Gemini API key (required)
+- **Optional** (depending on which gallery source you use):
+  - Apify API token (for Meisterdrucke source)
+  - Rijksmuseum API key (for Rijksmuseum source)
+  - Met Museum & WikiArt require no API keys!
 
 ## Installation
 
@@ -32,8 +39,12 @@ This installs `muse` as a global command that you can run from anywhere.
 
 3. Set up environment variables in your `~/.zshrc` or `~/.bashrc`:
 ```bash
+# Required
 export GEMINI_API_KEY="your-gemini-api-key"
-export APIFY_TOKEN="your-apify-api-token"
+
+# Optional - only if using specific sources
+export APIFY_TOKEN="your-apify-api-token"              # For Meisterdrucke
+export RIJKSMUSEUM_API_KEY="your-rijksmuseum-api-key" # For Rijksmuseum
 ```
 
 4. Reload your shell configuration:
@@ -51,6 +62,24 @@ muse search "In the depths of solitude, light finds its way"
 
 You can search from any directory! The AI will interpret your philosophical text and find matching artwork.
 
+### Choose your art gallery source
+
+By default, Muse searches Meisterdrucke. You can choose from 4 different galleries:
+
+```bash
+# Search Metropolitan Museum of Art (no API key needed!)
+muse search "impressionism monet" --source met
+
+# Search WikiArt (no API key needed!)
+muse search "starry night" --source wikiart
+
+# Search Rijksmuseum (requires free API key)
+muse search "rembrandt" --source rijksmuseum
+
+# Search Meisterdrucke (default, requires Apify token)
+muse search "van gogh" --source meisterdrucke
+```
+
 ### Search by painting or artist
 
 ```bash
@@ -61,11 +90,12 @@ muse search "impressionism monet"
 
 ### Options
 
+- `--source`, `-s`: Art gallery source: `meisterdrucke`, `met`, `wikiart`, `rijksmuseum` (default: meisterdrucke)
 - `--max`, `-m`: Maximum number of artworks to return (default: 10)
 - `--timeout`, `-t`: Timeout for AI generation in seconds (default: 30)
 
 ```bash
-muse search "Beauty is truth, truth beauty" --max 5 --timeout 60
+muse search "Beauty is truth, truth beauty" --source met --max 5 --timeout 60
 ```
 
 ### Show version
@@ -80,7 +110,8 @@ muse version
 muse-cli/
 ├── pyproject.toml   # Package configuration & entry point
 ├── interpreter.py   # AI layer - Google Gemini integration
-├── curator.py       # Scraper layer - Apify integration
+├── curator.py       # Scraper layer - Apify integration for Meisterdrucke
+├── gallery_apis.py  # API layer - Met, WikiArt, Rijksmuseum integrations
 ├── main.py          # CLI interface - Typer & Rich UI
 ├── requirements.txt # Python dependencies
 └── README.md        # Documentation
@@ -90,23 +121,36 @@ muse-cli/
 
 1. **Input**: You provide an abstract philosophical quote
 2. **Interpretation**: Google Gemini converts it into art-related search keywords
-3. **Scraping**: Apify scrapes Meisterdrucke.ie for matching artwork
+3. **Search**: Your chosen gallery source is queried for matching artwork:
+   - **Meisterdrucke**: Apify scrapes the gallery website
+   - **Met/WikiArt/Rijksmuseum**: Official museum APIs are called
 4. **Display**: Results are shown in a beautiful terminal table with clickable links
 
 ## API Keys
 
-### Getting a Gemini API Key
+### Getting a Gemini API Key (Required)
 
 1. Visit [Google AI Studio](https://makersuite.google.com/app/apikey)
 2. Sign in with your Google account
 3. Create a new API key
 
-### Getting an Apify API Token
+### Getting an Apify API Token (Optional - for Meisterdrucke)
 
 1. Visit [Apify Console](https://console.apify.com/)
 2. Sign up or log in
 3. Go to Settings > Integrations > API tokens
 4. Create a new token
+
+### Getting a Rijksmuseum API Key (Optional - for Rijksmuseum)
+
+1. Visit [Rijksmuseum API Portal](https://data.rijksmuseum.nl/object-metadata/api/)
+2. Request a free API key (instant approval)
+3. Check your email for the API key
+
+### No API Key Needed
+
+- **Met Museum**: Free, no authentication required
+- **WikiArt**: Free, no authentication required
 
 ## License
 
