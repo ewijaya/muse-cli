@@ -19,14 +19,16 @@ A Python CLI tool that interprets abstract philosophical text into art search ke
 
 1. Clone this repository:
 ```bash
-git clone <repository-url>
+git clone https://github.com/ewijaya/muse-cli.git
 cd muse-cli
 ```
 
-2. Install dependencies:
+2. Install the package:
 ```bash
-pip install -r requirements.txt
+pip install -e .
 ```
+
+This installs `muse` as a global command that you can run from anywhere.
 
 3. Set up environment variables in your `~/.zshrc` or `~/.bashrc`:
 ```bash
@@ -44,7 +46,17 @@ source ~/.zshrc  # or source ~/.bashrc
 ### Search for artwork
 
 ```bash
-python main.py search "In the depths of solitude, light finds its way"
+muse search "In the depths of solitude, light finds its way"
+```
+
+You can search from any directory! The AI will interpret your philosophical text and find matching artwork.
+
+### Search by painting or artist
+
+```bash
+muse search "Starry Night by Van Gogh"
+muse search "dreaming girl"
+muse search "impressionism monet"
 ```
 
 ### Options
@@ -53,23 +65,25 @@ python main.py search "In the depths of solitude, light finds its way"
 - `--timeout`, `-t`: Timeout for AI generation in seconds (default: 30)
 
 ```bash
-python main.py search "Beauty is truth, truth beauty" --max 5 --timeout 60
+muse search "Beauty is truth, truth beauty" --max 5 --timeout 60
 ```
 
 ### Show version
 
 ```bash
-python main.py version
+muse version
 ```
 
 ## Project Structure
 
 ```
 muse-cli/
+├── pyproject.toml   # Package configuration & entry point
 ├── interpreter.py   # AI layer - Google Gemini integration
 ├── curator.py       # Scraper layer - Apify integration
 ├── main.py          # CLI interface - Typer & Rich UI
-└── requirements.txt # Python dependencies
+├── requirements.txt # Python dependencies
+└── README.md        # Documentation
 ```
 
 ## How It Works
