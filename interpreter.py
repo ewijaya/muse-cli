@@ -56,8 +56,8 @@ def generate_with_timeout(client, model_name: str, prompt: str, timeout_seconds:
     with ThreadPoolExecutor(max_workers=1) as executor:
         future = executor.submit(_generate)
         try:
-            result = future.wait(timeout=timeout_seconds)
-            return future.result()
+            result = future.result(timeout=timeout_seconds)
+            return result
         except FuturesTimeoutError:
             future.cancel()
             raise InterpreterTimeoutError(f"Request timed out after {timeout_seconds} seconds")
