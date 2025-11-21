@@ -16,8 +16,10 @@ Takes unstructured text input → generates search keywords via LLM → queries 
 - **WikiArt** - REST API, 250K+ artworks, no auth
 
 **Other features:**
+- Vision-based artwork analysis (explain command with multimodal LLM)
 - Terminal UI via Rich (tables, hyperlinks, progress indicators)
 - Token usage tracking (local JSON storage, daily reset)
+- Search result caching for explain feature
 - Timeout handling for flaky API calls
 - Built on free-tier LLM limits: 15 RPM, 1.5K requests/day, 1M tokens/day
 
@@ -64,6 +66,24 @@ muse search "starry night" --source wikiart
 muse search "van gogh" --source meisterdrucke
 ```
 
+### Artwork analysis
+
+```bash
+muse search "the weight of solitude"
+muse explain 3
+```
+
+The `explain` command uses vision models to analyze artwork images and explain their connection to your original query. It covers visual elements, thematic relationships, and interpretive context. Results from the last search are cached locally.
+
+```bash
+muse explain <index> --timeout 30
+```
+
+- `<index>` - Artwork number from last search results (1-based)
+- `--timeout`, `-t` - Analysis timeout in seconds (default: 30)
+
+Note: Vision models consume more tokens (~1200 input + ~300 output per analysis).
+
 ### Options
 
 ```bash
@@ -93,9 +113,10 @@ muse version
 ```
 muse-cli/
 ├── main.py          # CLI entry point (Typer framework)
-├── interpreter.py   # LLM interface (gemini-2.0-flash-exp)
+├── interpreter.py   # LLM interface (text + vision, gemini-2.0-flash-exp)
 ├── curator.py       # Apify scraper for Meisterdrucke
 ├── gallery_apis.py  # HTTP clients for Met/WikiArt APIs
+├── search_cache.py  # Local cache for search results (~/.muse-cli/last_search.json)
 ├── usage_tracker.py # Token counter with persistent storage
 └── pyproject.toml   # Package config, console_scripts entry point
 ```
@@ -104,9 +125,13 @@ muse-cli/
 
 **LLM choice:** Currently using Gemini 2.0 Flash (experimental) for free-tier access. 1M tokens/day is sufficient for personal use. Alternative models would require hosting infrastructure.
 
+**Vision analysis:** The explain command uses the same model with multimodal capabilities. Images are fetched via HTTP, converted to bytes, and sent alongside the analysis prompt. Token consumption is higher (~1500 tokens per analysis vs ~50 for keyword generation).
+
 **Gallery selection:** Met and WikiArt have stable REST APIs with no auth barriers. Meisterdrucke requires scraping but has a larger collection of prints.
 
 **Token tracking:** Rough estimation based on word count. Actual consumption may vary. Free-tier APIs don't expose token counts in responses, so we approximate.
+
+**Caching strategy:** Search results are stored in `~/.muse-cli/last_search.json`. Only the most recent search is cached. This avoids re-fetching artwork metadata when using the explain command.
 
 **Timeout handling:** LLM inference can be slow or unreliable. Default 30s timeout prevents hanging.
 
