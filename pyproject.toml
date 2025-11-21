@@ -45,4 +45,4 @@ Issues = "https://github.com/ewijaya/muse-cli/issues"
 muse = "main:app"
 
 [tool.setuptools]
-py-modules = ["main", "interpreter", "curator", "gallery_apis", "usage_tracker"]
+py-modules = ["main", "interpreter", "curator", "gallery_apis", "usage_tracker", "search_cache"]

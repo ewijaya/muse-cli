@@ -14,10 +14,11 @@ from rich.spinner import Spinner
 from rich.live import Live
 from typing import Optional
 
-from interpreter import generate_keywords, InterpreterError, InterpreterTimeoutError
+from interpreter import generate_keywords, explain_artwork, InterpreterError, InterpreterTimeoutError
 from curator import search_art, CuratorError
 from gallery_apis import search_art_api, GalleryAPIError
 from usage_tracker import get_tracker
+from search_cache import save_search_results, get_artwork_by_index, CacheError
 
 
 app = typer.Typer(
@@ -150,6 +151,93 @@ def search(
     console.print(table)
     console.print()
     console.print("[dim]Tip: Right-click on [View Image] links and select 'Copy Link Address'[/dim]")
+    console.print("[dim]Tip: Use 'muse explain <number>' to get AI analysis of any artwork[/dim]")
+
+    # Save search results to cache for the explain command
+    try:
+        save_search_results(quote, keywords, artworks, source)
+    except CacheError:
+        # Don't fail the search if caching fails
+        pass
+
+
+@app.command()
+def explain(
+    index: int = typer.Argument(..., help="Index number of artwork from last search (1-based)"),
+    timeout: int = typer.Option(30, "--timeout", "-t", help="Timeout for AI analysis in seconds")
+):
+    """
+    Explain why a specific artwork matches your philosophical quote.
+
+    Use this after running 'muse search' to get an AI-powered analysis of
+    how a specific artwork connects to your original philosophical text.
+
+    Example:
+        muse search "the weight of existence"
+        muse explain 3  # Analyze artwork #3 from the search results
+    """
+    # Display header panel
+    console.print()
+    console.print(Panel.fit(
+        "[bold magenta]Muse CLI - Artwork Analysis[/bold magenta]\n"
+        "[dim]Understanding the philosophical connection[/dim]",
+        border_style="magenta"
+    ))
+    console.print()
+
+    # Load the artwork from cache
+    try:
+        cache_data = get_artwork_by_index(index)
+    except CacheError as e:
+        console.print(f"[bold red]✗ Error:[/bold red] {str(e)}", style="red")
+        console.print("[yellow]Run 'muse search <quote>' first to search for artworks[/yellow]")
+        raise typer.Exit(code=1)
+
+    artwork = cache_data["artwork"]
+    original_query = cache_data["original_query"]
+    keywords = cache_data["keywords"]
+    source = cache_data["source"]
+
+    # Display artwork info
+    console.print(f"[bold cyan]Analyzing artwork #{index}:[/bold cyan]")
+    console.print(f"  [white]Title:[/white] {artwork['title']}")
+    console.print(f"  [yellow]Artist:[/yellow] {artwork['artist']}")
+    console.print(f"  [dim]Source:[/dim] {source}")
+    console.print()
+    console.print(f"[bold cyan]Original query:[/bold cyan] [green]\"{original_query}\"[/green]")
+    console.print(f"[bold cyan]Keywords used:[/bold cyan] [green]{keywords}[/green]")
+    console.print()
+
+    # Analyze the artwork
+    explanation = None
+    with console.status("[bold cyan]Analyzing artwork with AI vision...[/bold cyan]", spinner="dots"):
+        try:
+            explanation = explain_artwork(
+                artwork["image_url"],
+                original_query,
+                artwork["title"],
+                artwork["artist"],
+                timeout=timeout
+            )
+        except InterpreterTimeoutError as e:
+            console.print(f"[bold red]✗ Error:[/bold red] {str(e)}", style="red")
+            console.print("[yellow]Try increasing the timeout with --timeout option[/yellow]")
+            raise typer.Exit(code=1)
+        except InterpreterError as e:
+            console.print(f"[bold red]✗ Error:[/bold red] {str(e)}", style="red")
+            console.print("[yellow]Make sure GEMINI_API_KEY is set in your environment[/yellow]")
+            raise typer.Exit(code=1)
+
+    # Display the explanation in a panel
+    console.print(Panel(
+        explanation,
+        title="[bold]AI Analysis[/bold]",
+        border_style="cyan",
+        padding=(1, 2)
+    ))
+    console.print()
+    console.print(f"[dim]Image URL: {artwork['image_url']}[/dim]")
+    console.print()
 
 
 @app.command()

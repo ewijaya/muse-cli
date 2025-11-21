@@ -1,9 +1,11 @@
 """
 interpreter.py - AI Layer for Muse CLI
 Handles interaction with Google Gemini for converting abstract text to art search keywords.
+Also handles vision-based artwork analysis.
 """
 
 import os
+import requests
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 from google import genai
 from google.genai import types
@@ -112,3 +114,99 @@ def generate_keywords(text: str, timeout: int = 30) -> str:
         pass
 
     return keywords
+
+
+def explain_artwork(image_url: str, original_query: str, artwork_title: str, artist_name: str, timeout: int = 30) -> str:
+    """
+    Analyze an artwork image and explain how it connects to the original philosophical query.
+
+    Args:
+        image_url: URL of the artwork image
+        original_query: The original philosophical text/quote from the user
+        artwork_title: Title of the artwork
+        artist_name: Name of the artist
+        timeout: Timeout in seconds (default: 30)
+
+    Returns:
+        Detailed explanation of the connection
+
+    Raises:
+        InterpreterError: If API key is missing, image fetch fails, or analysis fails
+        InterpreterTimeoutError: If the request times out
+    """
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        raise InterpreterError("GEMINI_API_KEY environment variable not set")
+
+    # Fetch the image
+    try:
+        response = requests.get(image_url, timeout=10)
+        response.raise_for_status()
+        image_data = response.content
+    except requests.RequestException as e:
+        raise InterpreterError(f"Failed to fetch image: {str(e)}")
+
+    # Initialize client
+    client = genai.Client(api_key=api_key)
+    model_name = "gemini-2.0-flash-exp"
+
+    # Create a detailed prompt for analysis
+    prompt = f"""You are an expert art critic and philosopher. Analyze this artwork and explain how it connects to the following philosophical concept or quote.
+
+**User's Philosophical Text:**
+"{original_query}"
+
+**Artwork Information:**
+- Title: {artwork_title}
+- Artist: {artist_name}
+
+Please provide a thoughtful analysis covering:
+
+1. **Visual Elements**: Describe the key visual aspects (colors, composition, subjects, mood, style)
+
+2. **Thematic Connection**: Explain how the artwork's themes, emotions, or concepts relate to the user's philosophical text
+
+3. **Interpretation**: Discuss what makes this artwork a meaningful match for the given quote or concept
+
+Keep your response concise but insightful (around 150-250 words). Use a thoughtful, accessible tone.
+"""
+
+    def _analyze():
+        try:
+            response = client.models.generate_content(
+                model=model_name,
+                contents=[
+                    types.Part.from_bytes(data=image_data, mime_type="image/jpeg"),
+                    prompt
+                ],
+                config=types.GenerateContentConfig(
+                    temperature=0.7,
+                    top_p=0.95,
+                    max_output_tokens=500
+                )
+            )
+            return response.text
+        except Exception as e:
+            raise InterpreterError(f"Vision analysis failed: {str(e)}")
+
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        future = executor.submit(_analyze)
+        try:
+            result = future.result(timeout=timeout)
+
+            # Track API usage (vision models use more tokens)
+            try:
+                # Rough estimate: image ~1000 tokens, prompt ~200 tokens, output ~300 tokens
+                input_tokens = 1200
+                output_tokens = 300
+                tracker = get_tracker()
+                tracker.track_request(int(input_tokens), int(output_tokens))
+            except Exception:
+                pass
+
+            return result
+        except FuturesTimeoutError:
+            future.cancel()
+            raise InterpreterTimeoutError(f"Vision analysis timed out after {timeout} seconds")
+        except Exception as e:
+            raise InterpreterError(f"Unexpected error during vision analysis: {str(e)}")
