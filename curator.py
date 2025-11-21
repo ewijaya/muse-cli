@@ -50,50 +50,106 @@ def search_art(keywords: str, max_results: int = 10) -> List[Dict[str, str]]:
 
         const results = [];
 
-        // Select all search result items
-        $('.search-result-item, .search-result a img').each((index, element) => {
-            const $el = $(element);
+        // Log the page title to verify we got the right page
+        log.info(`Page title: ${$('title').text()}`);
 
-            // Get the image element
-            const $img = $el.is('img') ? $el : $el.find('img').first();
+        // Try multiple selector strategies for finding artwork items
+        const selectors = [
+            'a[href*="/kunstwerke/"] img',  // Links to artwork pages with images
+            'a[href*="/fine-art-prints/"] img',
+            'div.product-item img',
+            'div.item img',
+            'div[class*="product"] img',
+            'div[class*="result"] img',
+            'article img',
+            'li.product img',
+            '.grid img',
+            '.gallery img'
+        ];
 
-            if ($img.length === 0) return;
+        let $images = $();
+        for (const selector of selectors) {
+            const found = $(selector);
+            if (found.length > 0) {
+                log.info(`Selector "${selector}" found ${found.length} images`);
+                $images = $images.add(found);
+            }
+        }
 
-            // Handle lazy loading: check data-src first, then src
-            let imageUrl = $img.attr('data-src') || $img.attr('src');
+        // If still no images, just find all images and filter later
+        if ($images.length === 0) {
+            log.info('No images found with specific selectors, trying all images');
+            $images = $('img');
+            log.info(`Found ${$images.length} total images on page`);
+        }
+
+        // Process each image
+        $images.each((index, img) => {
+            const $img = $(img);
+
+            // Handle lazy loading: check multiple attributes
+            let imageUrl = $img.attr('data-src') ||
+                          $img.attr('data-lazy-src') ||
+                          $img.attr('data-original') ||
+                          $img.attr('src');
 
             // Skip if no image URL
             if (!imageUrl) return;
+
+            // Skip placeholder/loading images
+            if (imageUrl.includes('placeholder') ||
+                imageUrl.includes('loading') ||
+                imageUrl.includes('blank.')) return;
+
+            // Skip very small images (likely icons/UI elements)
+            const width = parseInt($img.attr('width')) || parseInt($img.css('width')) || 0;
+            const height = parseInt($img.attr('height')) || parseInt($img.css('height')) || 0;
+
+            // Filter out images that are definitely too small (less than 100px in either dimension)
+            if ((width > 0 && width < 100) || (height > 0 && height < 100)) {
+                return;
+            }
 
             // Make URL absolute if relative
             if (imageUrl.startsWith('//')) {
                 imageUrl = 'https:' + imageUrl;
             } else if (imageUrl.startsWith('/')) {
                 imageUrl = 'https://www.meisterdrucke.ie' + imageUrl;
+            } else if (!imageUrl.startsWith('http')) {
+                imageUrl = 'https://www.meisterdrucke.ie/' + imageUrl;
             }
 
-            // Filter out small images (icons, thumbnails < 200px)
-            const width = parseInt($img.attr('width')) || 0;
-            if (width > 0 && width < 200) return;
+            // Get title from alt text or parent link
+            const $link = $img.closest('a');
+            let title = $img.attr('alt') || $img.attr('title') || $link.attr('title') || '';
 
-            // Get title and artist information
-            const $link = $el.is('a') ? $el : $el.closest('a');
-            const title = $img.attr('alt') || $link.attr('title') || 'Untitled';
+            // Clean up title
+            title = title.trim();
+            if (!title || title.length < 2) {
+                title = 'Untitled';
+            }
 
-            // Try to extract artist name from various possible locations
+            // Try to extract artist name
             let artist = 'Unknown Artist';
-            const $artistEl = $el.find('.artist, .artist-name').first();
-            if ($artistEl.length > 0) {
+
+            // Look for artist in parent elements
+            const $parent = $img.closest('div, li, article');
+            const $artistEl = $parent.find('.artist, .artist-name, [class*="artist"]').first();
+            if ($artistEl.length > 0 && $artistEl.text().trim()) {
                 artist = $artistEl.text().trim();
             } else {
-                // Try to extract from title or alt text
-                const titleText = title.toLowerCase();
-                if (titleText.includes(' by ')) {
-                    artist = title.split(' by ')[1].split(',')[0].trim();
-                } else if (titleText.includes(' - ')) {
-                    const parts = title.split(' - ');
+                // Try to extract from title
+                const titleLower = title.toLowerCase();
+                if (titleLower.includes(' by ')) {
+                    const parts = title.split(/ by /i);
                     if (parts.length > 1) {
-                        artist = parts[parts.length - 1].trim();
+                        artist = parts[1].split(',')[0].split('(')[0].trim();
+                    }
+                } else if (titleLower.includes(' - ')) {
+                    const parts = title.split(' - ');
+                    if (parts.length >= 2) {
+                        // Usually format is "Title - Artist" or "Title - Artist, Year"
+                        artist = parts[1].split(',')[0].split('(')[0].trim();
                     }
                 }
             }
