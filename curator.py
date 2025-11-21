@@ -52,36 +52,69 @@ def search_art(keywords: str, max_results: int = 10) -> List[Dict[str, str]]:
 
         // Log the page title to verify we got the right page
         log.info(`Page title: ${$('title').text()}`);
+        log.info(`Current URL: ${request.url}`);
 
-        // Try multiple selector strategies for finding artwork items
+        // Try to find the main search results container first
+        const resultContainers = [
+            '.search-results',
+            '#search-results',
+            '.results',
+            '#results',
+            '.product-list',
+            '.products',
+            'main',
+            '#main',
+            '.content',
+            '#content'
+        ];
+
+        let $container = null;
+        for (const containerSelector of resultContainers) {
+            const $found = $(containerSelector);
+            if ($found.length > 0) {
+                log.info(`Found container: ${containerSelector}`);
+                $container = $found;
+                break;
+            }
+        }
+
+        // If no container found, use the whole page but skip header/footer/nav
+        if (!$container) {
+            log.info('No specific container found, using body');
+            $container = $('body');
+        }
+
+        // Now look for artwork images within the container
+        // Prioritize search result specific selectors
         const selectors = [
-            'a[href*="/kunstwerke/"] img',  // Links to artwork pages with images
-            'a[href*="/fine-art-prints/"] img',
+            'div[class*="search"] img',  // Any div with "search" in class name
+            'div[class*="result"] img',  // Any div with "result" in class name
             'div.product-item img',
             'div.item img',
-            'div[class*="product"] img',
-            'div[class*="result"] img',
-            'article img',
+            'article.product img',
             'li.product img',
-            '.grid img',
-            '.gallery img'
+            'a[href*="/kunstwerke/"] img',  // Links to artwork pages
+            'a[href*="/fine-art-prints/"] img'
         ];
 
         let $images = $();
         for (const selector of selectors) {
-            const found = $(selector);
+            const found = $container.find(selector);
             if (found.length > 0) {
-                log.info(`Selector "${selector}" found ${found.length} images`);
+                log.info(`Selector "${selector}" found ${found.length} images in container`);
                 $images = $images.add(found);
             }
         }
 
-        // If still no images, just find all images and filter later
+        // If still no images, try all images in container but exclude header/footer/nav
         if ($images.length === 0) {
-            log.info('No images found with specific selectors, trying all images');
-            $images = $('img');
-            log.info(`Found ${$images.length} total images on page`);
+            log.info('No images found with specific selectors, trying all images in container');
+            $images = $container.find('img').not('header img, footer img, nav img, .menu img, .navigation img');
+            log.info(`Found ${$images.length} total images in container (excluding nav)`);
         }
+
+        // Track seen URLs to avoid duplicates
+        const seenUrls = new Set();
 
         // Process each image
         $images.each((index, img) => {
@@ -99,7 +132,9 @@ def search_art(keywords: str, max_results: int = 10) -> List[Dict[str, str]]:
             // Skip placeholder/loading images
             if (imageUrl.includes('placeholder') ||
                 imageUrl.includes('loading') ||
-                imageUrl.includes('blank.')) return;
+                imageUrl.includes('blank.') ||
+                imageUrl.includes('logo') ||
+                imageUrl.includes('icon')) return;
 
             // Skip very small images (likely icons/UI elements)
             const width = parseInt($img.attr('width')) || parseInt($img.css('width')) || 0;
@@ -118,6 +153,12 @@ def search_art(keywords: str, max_results: int = 10) -> List[Dict[str, str]]:
             } else if (!imageUrl.startsWith('http')) {
                 imageUrl = 'https://www.meisterdrucke.ie/' + imageUrl;
             }
+
+            // Skip duplicates
+            if (seenUrls.has(imageUrl)) {
+                return;
+            }
+            seenUrls.add(imageUrl);
 
             // Get title from alt text or parent link
             const $link = $img.closest('a');
