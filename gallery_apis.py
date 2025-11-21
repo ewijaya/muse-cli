@@ -170,83 +170,12 @@ def search_wikiart(keywords: str, max_results: int = 10) -> List[Dict[str, str]]
         raise GalleryAPIError(f"WikiArt API error: {str(e)}")
 
 
-def search_rijksmuseum(keywords: str, max_results: int = 10) -> List[Dict[str, str]]:
-    """
-    Search Rijksmuseum API.
-
-    Args:
-        keywords: Space-separated search keywords
-        max_results: Maximum number of results to return (default: 10)
-
-    Returns:
-        List of dictionaries containing artwork information:
-        - title: Artwork title
-        - artist: Artist name
-        - image_url: URL to the artwork image
-
-    Raises:
-        GalleryAPIError: If API key is missing or the API request fails
-    """
-    api_key = os.getenv("RIJKSMUSEUM_API_KEY")
-    if not api_key:
-        raise GalleryAPIError(
-            "RIJKSMUSEUM_API_KEY environment variable not set. "
-            "Get a free API key at https://data.rijksmuseum.nl/object-metadata/api/"
-        )
-
-    try:
-        # Rijksmuseum search endpoint
-        search_url = "https://www.rijksmuseum.nl/api/en/collection"
-        params = {
-            "key": api_key,
-            "q": keywords,
-            "imgonly": "true",  # Only return objects with images
-            "ps": max_results,  # Page size (number of results)
-            "format": "json"
-        }
-
-        response = requests.get(search_url, params=params, timeout=30)
-        response.raise_for_status()
-        data = response.json()
-
-        art_objects = data.get("artObjects", [])
-        if not art_objects:
-            return []
-
-        results = []
-        for obj in art_objects:
-            title = obj.get("title", "Untitled")
-            artist = obj.get("principalOrFirstMaker", "Unknown Artist")
-
-            # Get image URL
-            image_data = obj.get("webImage")
-            if not image_data:
-                continue
-
-            image_url = image_data.get("url")
-            if not image_url:
-                continue
-
-            results.append({
-                "title": title,
-                "artist": artist,
-                "image_url": image_url
-            })
-
-        return results
-
-    except requests.RequestException as e:
-        raise GalleryAPIError(f"Rijksmuseum API request failed: {str(e)}")
-    except Exception as e:
-        raise GalleryAPIError(f"Rijksmuseum API error: {str(e)}")
-
-
 def search_art_api(source: str, keywords: str, max_results: int = 10) -> List[Dict[str, str]]:
     """
     Unified function to search any supported art gallery API.
 
     Args:
-        source: Gallery source ("met", "wikiart", "rijksmuseum")
+        source: Gallery source ("met", "wikiart")
         keywords: Space-separated search keywords
         max_results: Maximum number of results to return
 
@@ -258,8 +187,7 @@ def search_art_api(source: str, keywords: str, max_results: int = 10) -> List[Di
     """
     sources = {
         "met": search_met_museum,
-        "wikiart": search_wikiart,
-        "rijksmuseum": search_rijksmuseum
+        "wikiart": search_wikiart
     }
 
     if source not in sources:

@@ -32,7 +32,7 @@ def search(
     quote: str = typer.Argument(..., help="The philosophical quote or abstract text to interpret"),
     max_results: int = typer.Option(10, "--max", "-m", help="Maximum number of artworks to return"),
     timeout: int = typer.Option(30, "--timeout", "-t", help="Timeout for AI generation in seconds"),
-    source: str = typer.Option("meisterdrucke", "--source", "-s", help="Art gallery source: meisterdrucke, met, wikiart, rijksmuseum")
+    source: str = typer.Option("meisterdrucke", "--source", "-s", help="Art gallery source: meisterdrucke, met, wikiart")
 ):
     """
     Search for artwork based on abstract philosophical text.
@@ -42,9 +42,8 @@ def search(
 
     Available sources:
     - meisterdrucke: Meisterdrucke.ie gallery (via Apify scraping)
-    - met: Metropolitan Museum of Art (official API)
-    - wikiart: WikiArt database (official API)
-    - rijksmuseum: Rijksmuseum Amsterdam (official API, requires API key)
+    - met: Metropolitan Museum of Art (official API, no key needed)
+    - wikiart: WikiArt database (official API, no key needed)
     """
     # Display header panel
     console.print()
@@ -77,7 +76,7 @@ def search(
     artworks = []
 
     # Validate source
-    valid_sources = ["meisterdrucke", "met", "wikiart", "rijksmuseum"]
+    valid_sources = ["meisterdrucke", "met", "wikiart"]
     if source.lower() not in valid_sources:
         console.print(f"[bold red]✗ Error:[/bold red] Invalid source '{source}'", style="red")
         console.print(f"[yellow]Valid sources: {', '.join(valid_sources)}[/yellow]")
@@ -89,8 +88,7 @@ def search(
     source_names = {
         "meisterdrucke": "Meisterdrucke via Apify",
         "met": "Metropolitan Museum of Art",
-        "wikiart": "WikiArt",
-        "rijksmuseum": "Rijksmuseum"
+        "wikiart": "WikiArt"
     }
     status_msg = f"[bold cyan]Searching {source_names[source]}...[/bold cyan]"
 
@@ -108,8 +106,6 @@ def search(
             raise typer.Exit(code=1)
         except GalleryAPIError as e:
             console.print(f"[bold red]✗ Error:[/bold red] {str(e)}", style="red")
-            if "RIJKSMUSEUM_API_KEY" in str(e):
-                console.print("[yellow]Get a free API key at https://data.rijksmuseum.nl/object-metadata/api/[/yellow]")
             raise typer.Exit(code=1)
 
     # Step 3: Display results
