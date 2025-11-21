@@ -84,37 +84,44 @@ def search_art(keywords: str, max_results: int = 10) -> List[Dict[str, str]]:
             $container = $('body');
         }
 
-        // Now look for artwork images within the container
-        // Prioritize search result specific selectors
-        const selectors = [
-            'div[class*="search"] img',  // Any div with "search" in class name
-            'div[class*="result"] img',  // Any div with "result" in class name
-            'div.product-item img',
-            'div.item img',
-            'article.product img',
-            'li.product img',
-            'a[href*="/kunstwerke/"] img',  // Links to artwork pages
-            'a[href*="/fine-art-prints/"] img'
-        ];
+        // Get all images from container but filter based on parent elements
+        log.info('Finding all images and filtering by parent context');
 
-        let $images = $();
-        for (const selector of selectors) {
-            const found = $container.find(selector);
-            if (found.length > 0) {
-                log.info(`Selector "${selector}" found ${found.length} images in container`);
-                $images = $images.add(found);
+        const $allImages = $container.find('img');
+        log.info(`Total images in container: ${$allImages.length}`);
+
+        // Filter out images that are in excluded sections
+        const $images = $allImages.filter((i, img) => {
+            const $img = $(img);
+            const $parents = $img.parents();
+
+            // Exclude images in these containers
+            if ($parents.filter('.sidebar, #sidebar, .featured, .popular, .recommended, .trending, aside, .widget, header, footer, nav, .navigation, .menu').length > 0) {
+                return false;
             }
-        }
 
-        // If still no images, try all images in container but exclude header/footer/nav
-        if ($images.length === 0) {
-            log.info('No images found with specific selectors, trying all images in container');
-            $images = $container.find('img').not('header img, footer img, nav img, .menu img, .navigation img');
-            log.info(`Found ${$images.length} total images in container (excluding nav)`);
-        }
+            // Exclude images in header/footer/nav directly
+            if ($img.closest('header, footer, nav, aside, .sidebar').length > 0) {
+                return false;
+            }
+
+            return true;
+        });
+
+        log.info(`Images after filtering out sidebars/headers/footers: ${$images.length}`)
 
         // Track seen URLs to avoid duplicates
         const seenUrls = new Set();
+
+        // Debug: log parent info for first few images
+        $images.slice(0, 5).each((i, img) => {
+            const $img = $(img);
+            const $parent = $img.parent();
+            const parentClass = $parent.attr('class') || 'no-class';
+            const parentId = $parent.attr('id') || 'no-id';
+            const alt = $img.attr('alt') || 'no-alt';
+            log.info(`Image ${i}: parent class="${parentClass}", id="${parentId}", alt="${alt.substring(0, 50)}"`);
+        });
 
         // Process each image
         $images.each((index, img) => {
