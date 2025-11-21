@@ -25,20 +25,6 @@ app = typer.Typer(
 console = Console()
 
 
-def make_hyperlink(url: str, text: str) -> str:
-    """
-    Create a clickable terminal hyperlink.
-
-    Args:
-        url: The URL to link to
-        text: The text to display
-
-    Returns:
-        Formatted hyperlink string
-    """
-    return f'\x1b]8;;{url}\x1b\\{text}\x1b]8;;\x1b\\'
-
-
 @app.command()
 def search(
     quote: str = typer.Argument(..., help="The philosophical quote or abstract text to interpret"),
@@ -108,7 +94,7 @@ def search(
     table.add_column("#", style="dim", width=4, justify="right")
     table.add_column("Title", style="white", min_width=30)
     table.add_column("Artist", style="yellow", min_width=20)
-    table.add_column("Link", style="blue", min_width=10)
+    table.add_column("Image URL", style="blue", min_width=40)
 
     # Add rows to table
     for idx, artwork in enumerate(artworks, 1):
@@ -116,19 +102,16 @@ def search(
         artist = artwork.get("artist", "Unknown")
         image_url = artwork.get("image_url", "")
 
-        # Create clickable link
-        link_text = make_hyperlink(image_url, "View Image")
-
         table.add_row(
             str(idx),
             title,
             artist,
-            link_text
+            image_url
         )
 
     console.print(table)
     console.print()
-    console.print("[dim]Tip: Click on 'View Image' links to open artwork in your browser[/dim]")
+    console.print("[dim]Tip: Right-click on URLs to copy them to your browser[/dim]")
 
 
 @app.command()
