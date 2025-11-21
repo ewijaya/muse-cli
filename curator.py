@@ -163,7 +163,10 @@ def search_art(keywords: str, max_results: int = 10) -> List[Dict[str, str]]:
 
         log.info(`Found ${results.length} artwork results`);
 
-        return results;
+        // Push results to dataset (Apify requires explicit pushData call)
+        for (const result of results) {
+            await context.pushData(result);
+        }
     }
     """
 
@@ -182,10 +185,8 @@ def search_art(keywords: str, max_results: int = 10) -> List[Dict[str, str]]:
         # Fetch results from dataset
         results = []
         for item in client.dataset(run["defaultDatasetId"]).iterate_items():
-            # The pageFunction returns an array, so we need to flatten it
-            if isinstance(item, list):
-                results.extend(item)
-            elif isinstance(item, dict):
+            # Each item is a dict representing one artwork
+            if isinstance(item, dict):
                 results.append(item)
 
         # Limit results
