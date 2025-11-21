@@ -1,5 +1,9 @@
 # Muse CLI
 
+<p align="center">
+  <img src="assets/muse-banner.jpeg" alt="Muse CLI Banner" width="100%">
+</p>
+
 A Python CLI tool that interprets abstract philosophical text into art search keywords using Google Gemini, and searches for artwork across multiple renowned art galleries including the Metropolitan Museum of Art, WikiArt, and Meisterdrucke.
 
 ## Features
