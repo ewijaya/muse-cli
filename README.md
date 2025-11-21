@@ -31,7 +31,7 @@ pip install -r requirements.txt
 3. Set up environment variables in your `~/.zshrc` or `~/.bashrc`:
 ```bash
 export GEMINI_API_KEY="your-gemini-api-key"
-export APIFY_API_TOKEN="your-apify-api-token"
+export APIFY_TOKEN="your-apify-api-token"
 ```
 
 4. Reload your shell configuration:

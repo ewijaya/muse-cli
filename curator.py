@@ -31,9 +31,9 @@ def search_art(keywords: str, max_results: int = 10) -> List[Dict[str, str]]:
     Raises:
         CuratorError: If API token is missing or scraping fails
     """
-    api_token = os.getenv("APIFY_API_TOKEN")
+    api_token = os.getenv("APIFY_TOKEN")
     if not api_token:
-        raise CuratorError("APIFY_API_TOKEN environment variable not set")
+        raise CuratorError("APIFY_TOKEN environment variable not set")
 
     # Initialize Apify client
     client = ApifyClient(api_token)

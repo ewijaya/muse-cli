@@ -85,7 +85,7 @@ def search(
             artworks = search_art(keywords, max_results=max_results)
         except CuratorError as e:
             console.print(f"[bold red]✗ Error:[/bold red] {str(e)}", style="red")
-            console.print("[yellow]Make sure APIFY_API_TOKEN is set in your environment[/yellow]")
+            console.print("[yellow]Make sure APIFY_TOKEN is set in your environment[/yellow]")
             raise typer.Exit(code=1)
 
     # Step 3: Display results
