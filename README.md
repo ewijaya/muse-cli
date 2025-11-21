@@ -4,164 +4,123 @@
   <img src="assets/muse-banner.jpeg" alt="Muse CLI Banner" width="100%">
 </p>
 
-A Python CLI tool that interprets abstract philosophical text into art search keywords using Google Gemini, and searches for artwork across multiple renowned art galleries including the Metropolitan Museum of Art, WikiArt, and Meisterdrucke.
+A CLI for semantic search across art museum databases. Transforms natural language queries into structured search terms, then aggregates results from multiple gallery sources.
 
-## Features
+## What it does
 
-- **AI-Powered Interpretation**: Uses Google Gemini (gemini-2.0-flash-exp) to convert philosophical quotes into art search keywords
-- **Multiple Art Gallery Sources**: Search from 3 different galleries:
-  - **Meisterdrucke** (via Apify web scraping)
-  - **Metropolitan Museum of Art** (official API, 470,000+ artworks, no key needed)
-  - **WikiArt** (official API, 250,000+ artworks, no key needed)
-- **Beautiful CLI**: Rich terminal UI with tables, spinners, and clickable links
-- **Usage Tracking**: Monitor your Gemini API usage against free tier limits (15 RPM, 1,500 requests/day, 1M tokens/day)
-- **Timeout Protection**: Handles API timeouts gracefully
+Takes unstructured text input → generates search keywords via LLM → queries multiple gallery sources → returns aggregated results in terminal.
+
+**Gallery sources:**
+- **Meisterdrucke** - Web scraping via Apify (requires token)
+- **Metropolitan Museum** - REST API, 470K+ artworks, no auth
+- **WikiArt** - REST API, 250K+ artworks, no auth
+
+**Other features:**
+- Terminal UI via Rich (tables, hyperlinks, progress indicators)
+- Token usage tracking (local JSON storage, daily reset)
+- Timeout handling for flaky API calls
+- Built on free-tier LLM limits: 15 RPM, 1.5K requests/day, 1M tokens/day
 
 ## Prerequisites
 
-- Python 3.8 or higher
-- Google Gemini API key (required)
-- **Optional**:
-  - Apify API token (only if using Meisterdrucke source)
-  - Met Museum & WikiArt require no API keys!
+- Python 3.8+
+- LLM API key (currently uses Gemini, free tier sufficient)
+- Apify token (optional, only for Meisterdrucke)
 
 ## Installation
 
-1. Clone this repository:
 ```bash
 git clone https://github.com/ewijaya/muse-cli.git
 cd muse-cli
-```
-
-2. Install the package:
-```bash
 pip install -e .
 ```
 
-This installs `muse` as a global command that you can run from anywhere.
+Add to `~/.zshrc` or `~/.bashrc`:
 
-3. Set up environment variables in your `~/.zshrc` or `~/.bashrc`:
 ```bash
-# Required
-export GEMINI_API_KEY="your-gemini-api-key"
-
-# Optional - only if using Meisterdrucke
-export APIFY_TOKEN="your-apify-api-token"
+export GEMINI_API_KEY="your-key-here"
+export APIFY_TOKEN="your-token-here"  # optional
 ```
 
-4. Reload your shell configuration:
 ```bash
-source ~/.zshrc  # or source ~/.bashrc
+source ~/.zshrc
 ```
 
 ## Usage
 
-### Search for artwork
+### Basic search
 
 ```bash
-muse search "In the depths of solitude, light finds its way"
+muse search "solitude and light"
 ```
 
-You can search from any directory! The AI will interpret your philosophical text and find matching artwork.
+The LLM interprets the input and generates search terms. Default source is Meisterdrucke.
 
-### Choose your art gallery source
-
-By default, Muse searches Meisterdrucke. You can choose from 3 different galleries:
+### Specify source
 
 ```bash
-# Search Metropolitan Museum of Art (no API key needed!)
 muse search "impressionism monet" --source met
-
-# Search WikiArt (no API key needed!)
 muse search "starry night" --source wikiart
-
-# Search Meisterdrucke (default, requires Apify token)
 muse search "van gogh" --source meisterdrucke
-```
-
-### Search by painting or artist
-
-```bash
-muse search "Starry Night by Van Gogh"
-muse search "dreaming girl"
-muse search "impressionism monet"
 ```
 
 ### Options
 
-- `--source`, `-s`: Art gallery source: `meisterdrucke`, `met`, `wikiart` (default: meisterdrucke)
-- `--max`, `-m`: Maximum number of artworks to return (default: 10)
-- `--timeout`, `-t`: Timeout for AI generation in seconds (default: 30)
-
 ```bash
-muse search "Beauty is truth, truth beauty" --source met --max 5 --timeout 60
+muse search "text" --source <meisterdrucke|met|wikiart> --max 10 --timeout 30
 ```
 
-### Show version
+- `--source`, `-s` - Gallery source (default: meisterdrucke)
+- `--max`, `-m` - Result limit (default: 10)
+- `--timeout`, `-t` - LLM timeout in seconds (default: 30)
 
-```bash
-muse version
-```
-
-### Monitor API usage
-
-Track your Gemini API usage against the free tier limits:
+### Token tracking
 
 ```bash
 muse usage
 ```
 
-This displays:
-- Today's request count and token usage
-- All-time statistics
-- Percentage of free tier limits used
-- Warnings if approaching or at limits
-- Free tier limit details (15 RPM, 1,500 requests/day, 1M tokens/day)
+Shows request count and estimated token consumption against free tier limits. Resets daily at UTC midnight. Note: Token counts are estimates (~1.3 tokens/word).
 
-**Note**: Usage tracking is based on estimates. Actual API usage may vary slightly.
+### Version
 
-## Project Structure
+```bash
+muse version
+```
+
+## Architecture
 
 ```
 muse-cli/
-├── pyproject.toml   # Package configuration & entry point
-├── interpreter.py   # AI layer - Google Gemini integration
-├── curator.py       # Scraper layer - Apify integration for Meisterdrucke
-├── gallery_apis.py  # API layer - Met Museum & WikiArt integrations
-├── usage_tracker.py # Usage tracking - Monitor API usage
-├── main.py          # CLI interface - Typer & Rich UI
-├── requirements.txt # Python dependencies
-└── README.md        # Documentation
+├── main.py          # CLI entry point (Typer framework)
+├── interpreter.py   # LLM interface (gemini-2.0-flash-exp)
+├── curator.py       # Apify scraper for Meisterdrucke
+├── gallery_apis.py  # HTTP clients for Met/WikiArt APIs
+├── usage_tracker.py # Token counter with persistent storage
+└── pyproject.toml   # Package config, console_scripts entry point
 ```
 
-## How It Works
+## Implementation notes
 
-1. **Input**: You provide an abstract philosophical quote
-2. **Interpretation**: Google Gemini converts it into art-related search keywords
-3. **Search**: Your chosen gallery source is queried for matching artwork:
-   - **Meisterdrucke**: Apify scrapes the gallery website
-   - **Met/WikiArt**: Official museum APIs are called
-4. **Display**: Results are shown in a beautiful terminal table with clickable links
+**LLM choice:** Currently using Gemini 2.0 Flash (experimental) for free-tier access. 1M tokens/day is sufficient for personal use. Alternative models would require hosting infrastructure.
 
-## API Keys
+**Gallery selection:** Met and WikiArt have stable REST APIs with no auth barriers. Meisterdrucke requires scraping but has a larger collection of prints.
 
-### Getting a Gemini API Key (Required)
+**Token tracking:** Rough estimation based on word count. Actual consumption may vary. Free-tier APIs don't expose token counts in responses, so we approximate.
 
-1. Visit [Google AI Studio](https://makersuite.google.com/app/apikey)
-2. Sign in with your Google account
-3. Create a new API key
+**Timeout handling:** LLM inference can be slow or unreliable. Default 30s timeout prevents hanging.
 
-### Getting an Apify API Token (Optional - for Meisterdrucke)
+## API keys
 
-1. Visit [Apify Console](https://console.apify.com/)
-2. Sign up or log in
-3. Go to Settings > Integrations > API tokens
-4. Create a new token
+**LLM API (Gemini):**
+1. [Google AI Studio](https://makersuite.google.com/app/apikey)
+2. Create API key (no credit card for free tier)
 
-### No API Key Needed
+**Apify (optional):**
+1. [Apify Console](https://console.apify.com/)
+2. Settings → Integrations → API tokens
 
-- **Met Museum**: Free, no authentication required
-- **WikiArt**: Free, no authentication required
+**Met/WikiArt:** No keys required.
 
 ## License
 
