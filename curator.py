@@ -113,16 +113,6 @@ def search_art(keywords: str, max_results: int = 10) -> List[Dict[str, str]]:
         // Track seen URLs to avoid duplicates
         const seenUrls = new Set();
 
-        // Debug: log parent info for first few images
-        $images.slice(0, 5).each((i, img) => {
-            const $img = $(img);
-            const $parent = $img.parent();
-            const parentClass = $parent.attr('class') || 'no-class';
-            const parentId = $parent.attr('id') || 'no-id';
-            const alt = $img.attr('alt') || 'no-alt';
-            log.info(`Image ${i}: parent class="${parentClass}", id="${parentId}", alt="${alt.substring(0, 50)}"`);
-        });
-
         // Process each image
         $images.each((index, img) => {
             const $img = $(img);
@@ -136,12 +126,50 @@ def search_art(keywords: str, max_results: int = 10) -> List[Dict[str, str]]:
             // Skip if no image URL
             if (!imageUrl) return;
 
+            // Get alt text for filtering
+            const altText = ($img.attr('alt') || '').toLowerCase();
+
             // Skip placeholder/loading images
             if (imageUrl.includes('placeholder') ||
                 imageUrl.includes('loading') ||
                 imageUrl.includes('blank.') ||
                 imageUrl.includes('logo') ||
                 imageUrl.includes('icon')) return;
+
+            // Skip non-artwork images based on alt text
+            const skipAltTexts = [
+                'logo',
+                'meisterdrucke',
+                'deutsch',
+                'english',
+                'français',
+                'español',
+                'italiano',
+                'dhl',
+                'post.at',
+                'quehenberger',
+                'cargoboard',
+                'fedex',
+                'ups',
+                'shipping',
+                'payment',
+                'visa',
+                'mastercard',
+                'paypal',
+                'erfahrungen',
+                'bewertungen',
+                'reviews',
+                'rating'
+            ];
+
+            if (skipAltTexts.some(skip => altText.includes(skip))) {
+                return;
+            }
+
+            // Also skip if alt text is very short (likely not artwork)
+            if (altText.length > 0 && altText.length < 5) {
+                return;
+            }
 
             // Skip very small images (likely icons/UI elements)
             const width = parseInt($img.attr('width')) || parseInt($img.css('width')) || 0;
