@@ -14,6 +14,7 @@ A Python CLI tool that interprets abstract philosophical text into art search ke
   - **Metropolitan Museum of Art** (official API, 470,000+ artworks, no key needed)
   - **WikiArt** (official API, 250,000+ artworks, no key needed)
 - **Beautiful CLI**: Rich terminal UI with tables, spinners, and clickable links
+- **Usage Tracking**: Monitor your Gemini API usage against free tier limits (15 RPM, 1,500 requests/day, 1M tokens/day)
 - **Timeout Protection**: Handles API timeouts gracefully
 
 ## Prerequisites
@@ -102,6 +103,23 @@ muse search "Beauty is truth, truth beauty" --source met --max 5 --timeout 60
 muse version
 ```
 
+### Monitor API usage
+
+Track your Gemini API usage against the free tier limits:
+
+```bash
+muse usage
+```
+
+This displays:
+- Today's request count and token usage
+- All-time statistics
+- Percentage of free tier limits used
+- Warnings if approaching or at limits
+- Free tier limit details (15 RPM, 1,500 requests/day, 1M tokens/day)
+
+**Note**: Usage tracking is based on estimates. Actual API usage may vary slightly.
+
 ## Project Structure
 
 ```
@@ -110,6 +128,7 @@ muse-cli/
 ├── interpreter.py   # AI layer - Google Gemini integration
 ├── curator.py       # Scraper layer - Apify integration for Meisterdrucke
 ├── gallery_apis.py  # API layer - Met Museum & WikiArt integrations
+├── usage_tracker.py # Usage tracking - Monitor API usage
 ├── main.py          # CLI interface - Typer & Rich UI
 ├── requirements.txt # Python dependencies
 └── README.md        # Documentation

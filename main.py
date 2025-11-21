@@ -17,6 +17,7 @@ from typing import Optional
 from interpreter import generate_keywords, InterpreterError, InterpreterTimeoutError
 from curator import search_art, CuratorError
 from gallery_apis import search_art_api, GalleryAPIError
+from usage_tracker import get_tracker
 
 
 app = typer.Typer(
@@ -156,6 +157,113 @@ def version():
     """Show version information."""
     console.print("[bold]Muse CLI[/bold] v1.0.0")
     console.print("[dim]A philosophical art search tool[/dim]")
+
+
+@app.command()
+def usage():
+    """Show Gemini API usage statistics and free tier limits."""
+    console.print()
+    console.print(Panel.fit(
+        "[bold magenta]Gemini API Usage Tracker[/bold magenta]\n"
+        "[dim]Monitor your usage against free tier limits[/dim]",
+        border_style="magenta"
+    ))
+    console.print()
+
+    try:
+        tracker = get_tracker()
+        stats = tracker.get_usage_stats()
+
+        # Create usage table
+        table = Table(
+            show_header=True,
+            header_style="bold cyan",
+            border_style="blue",
+            title="[bold]API Usage Statistics[/bold]",
+            title_style="bold magenta"
+        )
+
+        table.add_column("Metric", style="white", min_width=25)
+        table.add_column("Current", style="yellow", min_width=15, justify="right")
+        table.add_column("Limit", style="cyan", min_width=15, justify="right")
+        table.add_column("Usage %", style="green", min_width=10, justify="right")
+
+        # Today's usage
+        daily_req_color = "red" if stats["daily_request_percentage"] >= 100 else "yellow" if stats["daily_request_percentage"] > 80 else "green"
+        daily_tok_color = "red" if stats["daily_token_percentage"] >= 100 else "yellow" if stats["daily_token_percentage"] > 80 else "green"
+
+        table.add_row(
+            "Today's Requests",
+            str(stats["daily_requests"]),
+            f"{stats['daily_request_limit']:,}",
+            f"[{daily_req_color}]{stats['daily_request_percentage']:.1f}%[/{daily_req_color}]"
+        )
+
+        table.add_row(
+            "Today's Tokens",
+            f"{stats['daily_tokens']:,}",
+            f"{stats['daily_token_limit']:,}",
+            f"[{daily_tok_color}]{stats['daily_token_percentage']:.1f}%[/{daily_tok_color}]"
+        )
+
+        table.add_row("", "", "", "")  # Separator
+
+        # All-time usage
+        table.add_row(
+            "Total Requests (all-time)",
+            str(stats["total_requests"]),
+            "∞",
+            "-"
+        )
+
+        table.add_row(
+            "Total Tokens (all-time)",
+            f"{stats['total_tokens']:,}",
+            "∞",
+            "-"
+        )
+
+        console.print(table)
+        console.print()
+
+        # Free tier limits info
+        limits_panel = Panel(
+            "[bold cyan]Free Tier Limits:[/bold cyan]\n"
+            "• 15 requests per minute\n"
+            f"• {stats['daily_request_limit']:,} requests per day\n"
+            f"• {stats['daily_token_limit']:,} tokens per day\n\n"
+            "[dim]Daily counters reset at midnight UTC[/dim]",
+            title="[bold]Gemini 2.0 Flash Experimental[/bold]",
+            border_style="blue"
+        )
+        console.print(limits_panel)
+        console.print()
+
+        # Usage details
+        details_text = (
+            f"[bold]First used:[/bold] {stats['first_use_date']}\n"
+            f"[bold]Last reset:[/bold] {stats['last_reset_date']}\n"
+            f"[bold]Storage:[/bold] ~/.muse-cli/usage.json"
+        )
+        console.print(details_text)
+        console.print()
+
+        # Warning if approaching limits
+        if stats["at_limit"]:
+            console.print("[bold red]⚠️  Warning: Daily API limit reached![/bold red]")
+            console.print("[yellow]Your usage may be throttled or blocked until midnight UTC.[/yellow]")
+            console.print()
+        elif stats["approaching_limit"]:
+            console.print("[bold yellow]⚠️  Warning: Approaching daily API limits![/bold yellow]")
+            console.print("[dim]Consider monitoring your usage to stay within free tier.[/dim]")
+            console.print()
+
+        # Tips
+        console.print("[dim]Tip: Usage tracking is based on estimates. Actual API usage may vary.[/dim]")
+
+    except Exception as e:
+        console.print(f"[bold red]Error loading usage statistics:[/bold red] {str(e)}")
+        raise typer.Exit(code=1)
 
 
 if __name__ == "__main__":

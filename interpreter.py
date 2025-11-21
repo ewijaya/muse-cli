@@ -1,12 +1,13 @@
 """
 interpreter.py - AI Layer for Muse CLI
-Handles interaction with Google Gemma for converting abstract text to art search keywords.
+Handles interaction with Google Gemini for converting abstract text to art search keywords.
 """
 
 import os
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 from google import genai
 from google.genai import types
+from usage_tracker import get_tracker
 
 
 class InterpreterError(Exception):
@@ -99,5 +100,15 @@ def generate_keywords(text: str, timeout: int = 30) -> str:
     # Remove any markdown formatting that might have slipped through
     if keywords.startswith("```") or keywords.startswith("`"):
         keywords = keywords.strip("`").strip()
+
+    # Track API usage (estimate tokens based on text length)
+    try:
+        input_tokens = len(text.split()) * 1.3  # Rough estimate: ~1.3 tokens per word
+        output_tokens = len(keywords.split()) * 1.3
+        tracker = get_tracker()
+        tracker.track_request(int(input_tokens), int(output_tokens))
+    except Exception:
+        # Don't fail the request if tracking fails
+        pass
 
     return keywords
