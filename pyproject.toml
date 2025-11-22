@@ -7,7 +7,7 @@ name = "muse-cli"
 version = "1.0.0"
 description = "A philosophical art search tool - interpret abstract text into art search keywords using AI"
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 license = {text = "MIT"}
 authors = [
     {name = "muse-cli contributors"}
