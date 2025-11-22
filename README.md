@@ -37,6 +37,11 @@ cd muse-cli
 pip install -e .
 ```
 
+**Note:** If you encounter an error about `setup.py` not found, upgrade pip first:
+```bash
+pip install --upgrade pip
+```
+
 Add to `~/.zshrc` or `~/.bashrc`:
 
 ```bash
